@@ -1,8 +1,22 @@
 import React from 'react';
-import {AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
+import {AbsoluteFill, Sequence, interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
 import {C} from './kinetic/theme';
-import {Grain, HUD, Shot, Vignette} from './kinetic/ui';
+import {CutFx, Grain, HUD, Shot, Vignette} from './kinetic/ui';
+import type {FxKind} from './kinetic/ui';
 import {DataWall, Finale, Morph, Network, Open, Outro, Panels, Rings, Slams, Tunnel, Waves} from './kinetic/scenes';
+
+const CUTS: Array<{at: number; dur: number; fx: FxKind}> = [
+  {at: 90, dur: 24, fx: 'ring'},
+  {at: 265, dur: 20, fx: 'glitchbars'},
+  {at: 440, dur: 22, fx: 'burst'},
+  {at: 615, dur: 26, fx: 'ring'},
+  {at: 790, dur: 22, fx: 'scan'},
+  {at: 965, dur: 22, fx: 'pixels'},
+  {at: 1140, dur: 24, fx: 'spark'},
+  {at: 1315, dur: 24, fx: 'burst'},
+  {at: 1490, dur: 22, fx: 'flash'},
+  {at: 1700, dur: 20, fx: 'none'},
+];
 
 export const Kinetic: React.FC = () => {
   const f = useCurrentFrame();
@@ -20,39 +34,45 @@ export const Kinetic: React.FC = () => {
         overflow: 'hidden',
       }}
     >
-      <Shot from={0} duration={100} enter="cut" exit="left">
+      <Shot from={0} duration={114} reveal="cut" exit="shrink" exitDur={24}>
         <Open />
       </Shot>
-      <Shot from={90} duration={190} enter="right" exit="left">
+      <Shot from={90} duration={195} reveal="iris" revealDur={24} exit="none">
         <Network />
       </Shot>
-      <Shot from={265} duration={190} enter="right" exit="left">
+      <Shot from={265} duration={197} reveal="glitch" revealDur={20} exit="none">
         <Slams />
       </Shot>
-      <Shot from={440} duration={190} enter="right" exit="left">
+      <Shot from={440} duration={201} reveal="zoom" revealDur={22} exit="zoom" exitDur={22}>
         <Tunnel />
       </Shot>
-      <Shot from={615} duration={190} enter="right" exit="left">
+      <Shot from={615} duration={197} reveal="iris" revealDur={26} exit="none">
         <Morph />
       </Shot>
-      <Shot from={790} duration={190} enter="right" exit="left">
+      <Shot from={790} duration={197} reveal="shutter" revealDur={22} exit="none">
         <DataWall />
       </Shot>
-      <Shot from={965} duration={190} enter="right" exit="left">
+      <Shot from={965} duration={199} reveal="diagonal" revealDur={22} exit="left" exitDur={22}>
         <Panels />
       </Shot>
-      <Shot from={1140} duration={190} enter="right" exit="left">
+      <Shot from={1140} duration={199} reveal="doors" revealDur={24} exit="none">
         <Waves />
       </Shot>
-      <Shot from={1315} duration={190} enter="right" exit="left">
+      <Shot from={1315} duration={195} reveal="diamond" revealDur={24} exit="zoom" exitDur={24}>
         <Rings />
       </Shot>
-      <Shot from={1490} duration={220} enter="zoom" exit="cut">
+      <Shot from={1490} duration={230} reveal="zoom" revealDur={22} exit="fade" exitDur={22}>
         <Finale />
       </Shot>
-      <Shot from={1700} duration={100} enter="cut" exit="cut">
+      <Shot from={1700} duration={100} reveal="cut" exit="none">
         <Outro />
       </Shot>
+
+      {CUTS.map((c) => (
+        <Sequence key={c.at} from={c.at} durationInFrames={c.dur} layout="none">
+          <CutFx kind={c.fx} duration={c.dur} />
+        </Sequence>
+      ))}
 
       <Grain opacity={0.075} />
       <Vignette />

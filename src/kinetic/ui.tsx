@@ -1,6 +1,6 @@
 import React from 'react';
 import {AbsoluteFill, Sequence, interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
-import {C, MONO, clamp, easeInOut} from './theme';
+import {C, MONO, clamp, easeInOut, easeOut, rand} from './theme';
 
 const GRAIN =
   "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='180' height='180' filter='url(%23n)' opacity='0.55'/></svg>\")";
@@ -49,84 +49,132 @@ export const Camera: React.FC<{
   </AbsoluteFill>
 );
 
-type Move = 'left' | 'right' | 'up' | 'down' | 'zoom' | 'cut';
+/* ------------------------------------------------------------ cuts */
+
+export type Reveal =
+  | 'cut'
+  | 'iris'
+  | 'diamond'
+  | 'shutter'
+  | 'doors'
+  | 'diagonal'
+  | 'glitch'
+  | 'zoom';
+
+export type Exit = 'none' | 'shrink' | 'zoom' | 'left' | 'right' | 'up' | 'fold' | 'fade';
+
+export type FxKind = 'ring' | 'spark' | 'glitchbars' | 'burst' | 'scan' | 'pixels' | 'flash' | 'none';
+
+const polygonFrom = (p: number, originX: number, originY: number) => {
+  const r = easeOut(p) * 155;
+  const pts = [
+    [originX, originY - r],
+    [originX + r, originY],
+    [originX, originY + r],
+    [originX - r, originY],
+  ];
+  return `polygon(${pts.map(([x, y]) => `${x}% ${y}%`).join(', ')})`;
+};
+
+const clipFor = (reveal: Reveal, p: number, ox: number, oy: number) => {
+  switch (reveal) {
+    case 'iris':
+      return `circle(${easeOut(p) * 135}% at ${ox}% ${oy}%)`;
+    case 'diamond':
+      return polygonFrom(p, ox, oy);
+    case 'shutter':
+      return `inset(${(1 - easeInOut(p)) * 50.5}% 0% ${(1 - easeInOut(p)) * 50.5}% 0%)`;
+    case 'doors':
+      return `inset(0% ${(1 - easeInOut(p)) * 50.5}% 0% ${(1 - easeInOut(p)) * 50.5}%)`;
+    case 'diagonal': {
+      const q = easeInOut(p) * 210;
+      return `polygon(0% 0%, ${q - 10}% 0%, ${q - 110}% 100%, 0% 100%)`;
+    }
+    default:
+      return undefined;
+  }
+};
 
 const IN = 16;
-const OUT = 16;
 
 const ShotInner: React.FC<{
   duration: number;
-  enter: Move;
-  exit: Move;
+  reveal: Reveal;
+  revealDur: number;
+  originX: number;
+  originY: number;
+  exit: Exit;
+  exitDur: number;
   children: React.ReactNode;
-}> = ({duration, enter, exit, children}) => {
+}> = ({duration, reveal, revealDur, originX, originY, exit, exitDur, children}) => {
   const f = useCurrentFrame();
-  const tin = easeInOut(interpolate(f, [0, IN], [0, 1], clamp));
-  const tout = easeInOut(interpolate(f, [duration - OUT, duration], [0, 1], clamp));
+  const rp = interpolate(f, [0, Math.max(1, revealDur)], [0, 1], {...clamp, easing: easeInOut});
+  const ep = interpolate(f, [duration - Math.max(1, exitDur), duration], [0, 1], {...clamp, easing: easeInOut});
 
   let x = 0;
   let y = 0;
   let scale = 1;
   let opacity = 1;
+  let rotY = 0;
+  let jitter = 0;
 
-  const enterK = 1 - tin;
-  switch (enter) {
-    case 'left':
-      x -= enterK * 62;
-      scale *= 1 + enterK * 0.06;
-      break;
-    case 'right':
-      x += enterK * 62;
-      scale *= 1 + enterK * 0.06;
-      break;
-    case 'up':
-      y += enterK * 62;
-      scale *= 1 + enterK * 0.06;
-      break;
-    case 'down':
-      y -= enterK * 62;
-      scale *= 1 + enterK * 0.06;
-      break;
-    case 'zoom':
-      scale *= 1 + enterK * 0.35;
-      break;
-    case 'cut':
-      break;
+  if (reveal === 'zoom') {
+    const k = 1 - easeOut(Math.min(1, f / Math.max(1, revealDur)));
+    scale *= 1 + k * 0.55;
+    opacity *= Math.min(1, f / 7);
+  }
+  if (reveal === 'glitch') {
+    const r = rand(31);
+    jitter = f < 11 ? (r() - 0.5) * 90 * (1 - f / 11) : 0;
+    opacity *= Math.min(1, f / 4);
   }
 
   switch (exit) {
-    case 'left':
-      x -= tout * 62;
-      scale *= 1 + tout * 0.06;
-      break;
-    case 'right':
-      x += tout * 62;
-      scale *= 1 + tout * 0.06;
-      break;
-    case 'up':
-      y -= tout * 62;
-      scale *= 1 + tout * 0.06;
-      break;
-    case 'down':
-      y += tout * 62;
-      scale *= 1 + tout * 0.06;
+    case 'shrink':
+      scale *= 1 - easeInOut(ep) * 0.97;
+      opacity *= 1 - easeInOut(ep);
       break;
     case 'zoom':
-      scale *= 1 + tout * 0.45;
-      opacity *= 1 - tout * 0.8;
+      scale *= 1 + ep * 1.8;
+      opacity *= 1 - ep;
       break;
-    case 'cut':
-      opacity *= 1 - tout;
+    case 'left':
+      x -= ep * 70;
+      scale *= 1 + ep * 0.08;
+      opacity *= 1 - ep * 0.9;
+      break;
+    case 'right':
+      x += ep * 70;
+      scale *= 1 + ep * 0.08;
+      opacity *= 1 - ep * 0.9;
+      break;
+    case 'up':
+      y -= ep * 70;
+      scale *= 1 + ep * 0.08;
+      opacity *= 1 - ep * 0.9;
+      break;
+    case 'fold':
+      rotY = ep * 92;
+      opacity *= 1 - ep;
+      break;
+    case 'fade':
+      opacity *= 1 - ep;
+      break;
+    case 'none':
       break;
   }
+
+  const clip = clipFor(reveal, rp, originX, originY);
 
   return (
     <AbsoluteFill
       style={{
         opacity,
-        transform: `translate3d(${x}%, ${y}%, 0) scale(${scale})`,
+        clipPath: clip,
+        WebkitClipPath: clip,
+        transform: `perspective(1500px) translate3d(${x + jitter}%, ${y}%, 0) rotateY(${rotY}deg) scale(${scale})`,
         transformOrigin: '50% 50%',
-        willChange: 'transform, opacity',
+        willChange: 'transform, opacity, clip-path',
       }}
     >
       {children}
@@ -137,16 +185,234 @@ const ShotInner: React.FC<{
 export const Shot: React.FC<{
   from: number;
   duration: number;
-  enter?: Move;
-  exit?: Move;
+  reveal?: Reveal;
+  revealDur?: number;
+  originX?: number;
+  originY?: number;
+  exit?: Exit;
+  exitDur?: number;
   children: React.ReactNode;
-}> = ({from, duration, enter = 'right', exit = 'left', children}) => (
+}> = ({
+  from,
+  duration,
+  reveal = 'iris',
+  revealDur = 22,
+  originX = 50,
+  originY = 50,
+  exit = 'shrink',
+  exitDur = 22,
+  children,
+}) => (
   <Sequence from={from} durationInFrames={duration} layout="none">
-    <ShotInner duration={duration} enter={enter} exit={exit}>
+    <ShotInner
+      duration={duration}
+      reveal={reveal}
+      revealDur={revealDur}
+      originX={originX}
+      originY={originY}
+      exit={exit}
+      exitDur={exitDur}
+    >
       {children}
     </ShotInner>
   </Sequence>
 );
+
+/* ------------------------------------------------------------ bridge fx */
+
+export const CutFx: React.FC<{kind: FxKind; duration: number; originX?: number; originY?: number}> = ({
+  kind,
+  duration,
+  originX = 50,
+  originY = 50,
+}) => {
+  const f = useCurrentFrame();
+  const p = Math.min(1, f / Math.max(1, duration));
+  const q = easeOut(p);
+
+  if (kind === 'none') return null;
+
+  if (kind === 'ring') {
+    return (
+      <AbsoluteFill style={{pointerEvents: 'none'}}>
+        {[0, 1, 2].map((i) => {
+          const d = Math.max(0, Math.min(1, (f - i * 3) / Math.max(1, duration - 6)));
+          return (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                left: `${originX}%`,
+                top: `${originY}%`,
+                width: 420,
+                height: 420,
+                marginLeft: -210,
+                marginTop: -210,
+                borderRadius: '50%',
+                border: `2px solid ${i === 1 ? C.violet : C.cyan}`,
+                transform: `scale(${easeOut(d) * 4})`,
+                opacity: (1 - d) * 0.8,
+                boxShadow: `0 0 40px ${C.cyan}44`,
+              }}
+            />
+          );
+        })}
+      </AbsoluteFill>
+    );
+  }
+
+  if (kind === 'spark') {
+    const r = rand(91);
+    return (
+      <AbsoluteFill style={{pointerEvents: 'none'}}>
+        {Array.from({length: 34}).map((_, i) => {
+          const a = (i / 34) * Math.PI * 2 + r() * 0.4;
+          const dist = easeOut(p) * (420 + r() * 620);
+          const s = 3 + r() * 5;
+          return (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                left: `${originX}%`,
+                top: `${originY}%`,
+                width: s,
+                height: s,
+                borderRadius: '50%',
+                background: i % 3 === 0 ? C.pink : i % 2 === 0 ? C.cyan : C.ink,
+                transform: `translate(${Math.cos(a) * dist}px, ${Math.sin(a) * dist}px)`,
+                opacity: (1 - p) * 0.95,
+                boxShadow: `0 0 12px ${C.cyan}`,
+              }}
+            />
+          );
+        })}
+      </AbsoluteFill>
+    );
+  }
+
+  if (kind === 'glitchbars') {
+    const r = rand(53);
+    return (
+      <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'screen'}}>
+        {Array.from({length: 18}).map((_, i) => {
+          const y = r() * 100;
+          const h = 2 + r() * 34;
+          const dx = (r() - 0.5) * 220 * (1 - p);
+          return (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: `${y}%`,
+                height: h,
+                transform: `translateX(${dx}px)`,
+                background: i % 4 === 0 ? C.cyan : i % 4 === 1 ? C.pink : i % 4 === 2 ? C.ink : C.violet,
+                opacity: (1 - p) * (0.12 + r() * 0.3),
+              }}
+            />
+          );
+        })}
+      </AbsoluteFill>
+    );
+  }
+
+  if (kind === 'scan') {
+    const y = p * 112;
+    return (
+      <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'screen'}}>
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: `${y}%`,
+            height: 180,
+            transform: 'translateY(-50%)',
+            background: `linear-gradient(180deg, transparent, ${C.cyan}33, transparent)`,
+            opacity: Math.sin(Math.PI * p),
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: `${y}%`,
+            height: 2,
+            background: C.cyan,
+            boxShadow: `0 0 24px ${C.cyan}`,
+            opacity: Math.sin(Math.PI * p),
+          }}
+        />
+      </AbsoluteFill>
+    );
+  }
+
+  if (kind === 'burst') {
+    return (
+      <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'screen'}}>
+        {Array.from({length: 44}).map((_, i) => (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              width: 3,
+              height: 1400,
+              marginLeft: -1.5,
+              marginTop: -700,
+              background: `linear-gradient(180deg, transparent, ${i % 3 === 0 ? C.pink : C.cyan}, transparent)`,
+              transform: `rotate(${(i / 44) * 360}deg) scaleY(${0.1 + q * 0.9})`,
+              opacity: (1 - p) * 0.35,
+              transformOrigin: '50% 50%',
+            }}
+          />
+        ))}
+      </AbsoluteFill>
+    );
+  }
+
+  if (kind === 'pixels') {
+    const r = rand(17);
+    return (
+      <AbsoluteFill style={{pointerEvents: 'none'}}>
+        {Array.from({length: 80}).map((_, i) => {
+          const a = r() * Math.PI * 2;
+          const dist = q * (240 + r() * 760);
+          const s = 6 + r() * 22;
+          return (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                left: `calc(50% + ${Math.cos(a) * dist}px)`,
+                top: `calc(50% + ${Math.sin(a) * dist}px)`,
+                width: s,
+                height: s,
+                background: i % 4 === 0 ? C.violet : i % 3 === 0 ? C.pink : C.cyan,
+                opacity: (1 - p) * 0.7,
+                transform: `rotate(${q * 220 + i}deg)`,
+              }}
+            />
+          );
+        })}
+      </AbsoluteFill>
+    );
+  }
+
+  if (kind === 'flash') {
+    const o = interpolate(f, [0, 4, duration], [0, 0.95, 0], clamp);
+    return <AbsoluteFill style={{background: C.ink, opacity: o, pointerEvents: 'none'}} />;
+  }
+
+  return null;
+};
+
+/* ------------------------------------------------------------ hud */
 
 export const Label: React.FC<{
   index: string;
