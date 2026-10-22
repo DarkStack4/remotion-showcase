@@ -157,7 +157,7 @@ export const Network: React.FC = () => {
 
 const SLAMS = [
   {word: 'FAST', x: 0.5, y: 0.36, rot: -2, style: {color: C.ink}},
-  {word: 'SHARP', x: 0.5, y: 0.52, rot: 1.5, style: {color: 'transparent', WebkitTextStroke: `2px ${C.cyan}`}},
+  {word: 'SHARP', x: 0.5, y: 0.52, rot: 1.5, style: {color: C.cyan, textShadow: '0 0 55px rgba(84,230,255,0.45)'}},
   {word: 'ALIVE', x: 0.5, y: 0.68, rot: -1, style: {color: C.pink}},
 ];
 
@@ -791,7 +791,6 @@ export const Finale: React.FC = () => {
   const f = useCurrentFrame();
   const {fps} = useVideoConfig();
   const e = spring({frame: f - 4, fps, config: {damping: 200}});
-  const sweep = interpolate(f, [0, 220], [0, 100], clamp);
   const line = interpolate(f, [30, 100], [0, 780], {...clamp, easing: easeOut});
   const sub = interpolate(f, [60, 100], [0, 1], clamp);
   const tiltY = Math.sin(f / 46) * 5;
@@ -833,12 +832,8 @@ export const Finale: React.FC = () => {
                 fontSize: 268,
                 lineHeight: '250px',
                 letterSpacing: -12,
-                backgroundImage: `linear-gradient(100deg, #ffffff 0%, ${C.cyan} 28%, ${C.violet} 52%, ${C.pink} 72%, #ffffff 100%)`,
-                backgroundSize: '320% 100%',
-                backgroundPosition: `${sweep}% 0%`,
-                WebkitBackgroundClip: 'text',
-                backgroundClip: 'text',
-                color: 'transparent',
+                color: C.ink,
+                textShadow: `0 0 70px rgba(84,230,255,0.38), 0 0 150px rgba(154,92,255,0.28)`,
               }}
             >
               KINETIC

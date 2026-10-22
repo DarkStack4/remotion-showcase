@@ -6,14 +6,14 @@ import type {FxKind} from './kinetic/ui';
 import {DataWall, Finale, Morph, Network, Open, Outro, Panels, Rings, Slams, Tunnel, Waves} from './kinetic/scenes';
 
 const CUTS: Array<{at: number; dur: number; fx: FxKind}> = [
-  {at: 90, dur: 24, fx: 'ring'},
-  {at: 265, dur: 20, fx: 'glitchbars'},
-  {at: 440, dur: 22, fx: 'burst'},
-  {at: 615, dur: 26, fx: 'ring'},
-  {at: 790, dur: 22, fx: 'scan'},
-  {at: 965, dur: 22, fx: 'pixels'},
-  {at: 1140, dur: 24, fx: 'spark'},
-  {at: 1315, dur: 24, fx: 'burst'},
+  {at: 90, dur: 24, fx: 'nodes'},
+  {at: 265, dur: 20, fx: 'slabs'},
+  {at: 440, dur: 22, fx: 'streaks'},
+  {at: 615, dur: 26, fx: 'morph'},
+  {at: 790, dur: 22, fx: 'digits'},
+  {at: 965, dur: 22, fx: 'tiles'},
+  {at: 1140, dur: 24, fx: 'wave'},
+  {at: 1315, dur: 24, fx: 'ring'},
   {at: 1490, dur: 22, fx: 'flash'},
   {at: 1700, dur: 20, fx: 'none'},
 ];
@@ -43,10 +43,10 @@ export const Kinetic: React.FC = () => {
       <Shot from={265} duration={197} reveal="glitch" revealDur={20} exit="none">
         <Slams />
       </Shot>
-      <Shot from={440} duration={201} reveal="zoom" revealDur={22} exit="zoom" exitDur={22}>
+      <Shot from={440} duration={201} reveal="zoom" revealDur={22} exit="shrink" exitDur={26}>
         <Tunnel />
       </Shot>
-      <Shot from={615} duration={197} reveal="iris" revealDur={26} exit="none">
+      <Shot from={615} duration={197} reveal="diamond" revealDur={26} exit="none">
         <Morph />
       </Shot>
       <Shot from={790} duration={197} reveal="shutter" revealDur={22} exit="none">
@@ -55,10 +55,10 @@ export const Kinetic: React.FC = () => {
       <Shot from={965} duration={199} reveal="diagonal" revealDur={22} exit="left" exitDur={22}>
         <Panels />
       </Shot>
-      <Shot from={1140} duration={199} reveal="doors" revealDur={24} exit="none">
+      <Shot from={1140} duration={199} reveal="wave" revealDur={24} exit="none">
         <Waves />
       </Shot>
-      <Shot from={1315} duration={195} reveal="diamond" revealDur={24} exit="zoom" exitDur={24}>
+      <Shot from={1315} duration={195} reveal="iris" revealDur={24} exit="zoom" exitDur={24}>
         <Rings />
       </Shot>
       <Shot from={1490} duration={230} reveal="zoom" revealDur={22} exit="fade" exitDur={22}>

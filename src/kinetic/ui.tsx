@@ -59,11 +59,27 @@ export type Reveal =
   | 'doors'
   | 'diagonal'
   | 'glitch'
-  | 'zoom';
+  | 'zoom'
+  | 'wave';
 
 export type Exit = 'none' | 'shrink' | 'zoom' | 'left' | 'right' | 'up' | 'fold' | 'fade';
 
-export type FxKind = 'ring' | 'spark' | 'glitchbars' | 'burst' | 'scan' | 'pixels' | 'flash' | 'none';
+export type FxKind =
+  | 'ring'
+  | 'spark'
+  | 'glitchbars'
+  | 'burst'
+  | 'scan'
+  | 'pixels'
+  | 'flash'
+  | 'nodes'
+  | 'streaks'
+  | 'morph'
+  | 'digits'
+  | 'tiles'
+  | 'wave'
+  | 'slabs'
+  | 'none';
 
 const polygonFrom = (p: number, originX: number, originY: number) => {
   const r = easeOut(p) * 155;
@@ -76,8 +92,25 @@ const polygonFrom = (p: number, originX: number, originY: number) => {
   return `polygon(${pts.map(([x, y]) => `${x}% ${y}%`).join(', ')})`;
 };
 
-const clipFor = (reveal: Reveal, p: number, ox: number, oy: number) => {
+const waveClip = (p: number, f: number) => {
+  const base = -32 + easeInOut(p) * 176;
+  const pts: string[] = [];
+  const n = 42;
+  for (let i = n; i >= 0; i--) {
+    const x = (i / n) * 100;
+    const y =
+      base +
+      Math.sin(x * 0.21 + f * 0.2) * 6.5 +
+      Math.sin(x * 0.07 - f * 0.11) * 3.5;
+    pts.push(`${x.toFixed(2)}% ${y.toFixed(2)}%`);
+  }
+  return `polygon(0% 0%, 100% 0%, ${pts.join(', ')})`;
+};
+
+const clipFor = (reveal: Reveal, p: number, ox: number, oy: number, f: number) => {
   switch (reveal) {
+    case 'wave':
+      return waveClip(p, f);
     case 'iris':
       return `circle(${easeOut(p) * 135}% at ${ox}% ${oy}%)`;
     case 'diamond':
@@ -164,7 +197,7 @@ const ShotInner: React.FC<{
       break;
   }
 
-  const clip = clipFor(reveal, rp, originX, originY);
+  const clip = clipFor(reveal, rp, originX, originY, f);
 
   return (
     <AbsoluteFill
@@ -396,6 +429,202 @@ export const CutFx: React.FC<{kind: FxKind; duration: number; originX?: number; 
                 background: i % 4 === 0 ? C.violet : i % 3 === 0 ? C.pink : C.cyan,
                 opacity: (1 - p) * 0.7,
                 transform: `rotate(${q * 220 + i}deg)`,
+              }}
+            />
+          );
+        })}
+      </AbsoluteFill>
+    );
+  }
+
+  if (kind === 'nodes') {
+    const pts = Array.from({length: 12}, (_, i) => {
+      const a = (i / 12) * Math.PI * 2 + p * 0.6;
+      const r = 70 + q * 560;
+      return {cx: 960 + Math.cos(a) * r, cy: 540 + Math.sin(a) * r * 0.86};
+    });
+    return (
+      <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'screen'}}>
+        <svg width="1920" height="1080" style={{position: 'absolute', inset: 0}}>
+          {pts.map((pt, i) => {
+            const next = pts[(i + 1) % pts.length];
+            return (
+              <line
+                key={i}
+                x1={pt.cx}
+                y1={pt.cy}
+                x2={next.cx}
+                y2={next.cy}
+                stroke={C.cyan}
+                strokeWidth={1.2}
+                opacity={(1 - p) * 0.45}
+              />
+            );
+          })}
+          {pts.map((pt, i) => (
+            <circle key={i} cx={pt.cx} cy={pt.cy} r={3.5 + (i % 3)} fill={i % 4 === 0 ? C.pink : C.cyan} opacity={(1 - p) * 0.9} />
+          ))}
+        </svg>
+      </AbsoluteFill>
+    );
+  }
+
+  if (kind === 'streaks') {
+    return (
+      <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'screen'}}>
+        {Array.from({length: 56}).map((_, i) => (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              width: 2,
+              height: 1250,
+              marginLeft: -1,
+              marginTop: -625,
+              background: `linear-gradient(180deg, transparent, ${i % 3 === 0 ? C.pink : C.cyan}, transparent)`,
+              transform: `rotate(${(i / 56) * 360}deg) scaleY(${0.05 + q * 1.2})`,
+              opacity: (1 - p) * 0.4,
+            }}
+          />
+        ))}
+      </AbsoluteFill>
+    );
+  }
+
+  if (kind === 'morph') {
+    const hex = (r: number, rot: number) =>
+      Array.from({length: 6}, (_, i) => {
+        const a = (i / 6) * Math.PI * 2 + (rot * Math.PI) / 180;
+        return `${960 + Math.cos(a) * r},${540 + Math.sin(a) * r}`;
+      }).join(' ');
+    return (
+      <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'screen'}}>
+        <svg width="1920" height="1080" style={{position: 'absolute', inset: 0}}>
+          {[0, 1, 2].map((i) => (
+            <polygon
+              key={i}
+              points={hex(120 + q * (420 + i * 120), f * (1.6 + i * 0.5) + i * 30)}
+              fill="none"
+              stroke={i === 1 ? C.violet : i === 2 ? C.pink : C.cyan}
+              strokeWidth={2}
+              opacity={(1 - p) * 0.7}
+            />
+          ))}
+        </svg>
+      </AbsoluteFill>
+    );
+  }
+
+  if (kind === 'digits') {
+    return (
+      <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'screen'}}>
+        {Array.from({length: 52}).map((_, i) => {
+          const x = (i * 149) % 1900;
+          const y = ((i * 271 + f * 46) % 1320) - 120;
+          return (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                left: x,
+                top: y,
+                fontFamily: MONO,
+                fontSize: 18 + (i % 4) * 5,
+                color: i % 5 === 0 ? C.cyan : 'rgba(200,225,255,0.75)',
+                opacity: (1 - p) * 0.55,
+              }}
+            >
+              {String((i * 97 + f * 13) % 10)}
+            </div>
+          );
+        })}
+      </AbsoluteFill>
+    );
+  }
+
+  if (kind === 'tiles') {
+    return (
+      <AbsoluteFill style={{pointerEvents: 'none'}}>
+        {Array.from({length: 28}).map((_, i) => {
+          const col = i % 7;
+          const row = Math.floor(i / 7);
+          const tx = 130 + col * 240 - 960;
+          const ty = 230 + row * 146 - 540;
+          return (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                left: `calc(50% + ${tx * q}px)`,
+                top: `calc(50% + ${ty * q}px)`,
+                width: 190,
+                height: 112,
+                marginLeft: -95,
+                marginTop: -56,
+                border: `1px solid ${i % 3 === 0 ? C.cyan : 'rgba(238,244,255,0.35)'}`,
+                background: 'rgba(8,14,28,0.55)',
+                opacity: (1 - p) * 0.6,
+                transform: `scale(${0.4 + q * 0.6})`,
+              }}
+            />
+          );
+        })}
+      </AbsoluteFill>
+    );
+  }
+
+  if (kind === 'wave') {
+    return (
+      <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'screen'}}>
+        <svg width="1920" height="1080" style={{position: 'absolute', inset: 0}}>
+          {[0, 1, 2, 3].map((k) => {
+            const d = Array.from({length: 64}, (_, i) => {
+              const x = (i / 63) * 1920;
+              const y =
+                420 +
+                k * 90 +
+                Math.sin(x * 0.0055 + f * 0.14 + k) * (50 + k * 8) +
+                Math.sin(x * 0.0021 - f * 0.07) * 34;
+              return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+            }).join(' ');
+            return (
+              <path
+                key={k}
+                d={d}
+                fill="none"
+                stroke={k % 2 === 0 ? C.cyan : C.violet}
+                strokeWidth={1.6}
+                opacity={(1 - p) * 0.55}
+              />
+            );
+          })}
+        </svg>
+      </AbsoluteFill>
+    );
+  }
+
+  if (kind === 'slabs') {
+    return (
+      <AbsoluteFill style={{pointerEvents: 'none'}}>
+        {Array.from({length: 7}).map((_, i) => {
+          const pi = Math.max(0, Math.min(1, (p - i * 0.012) / 0.93));
+          const off = Math.sin(Math.PI * pi);
+          const dir = i % 2 === 0 ? -1 : 1;
+          return (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                left: -40,
+                width: 'calc(100% + 80px)',
+                top: `${(i / 7) * 100}%`,
+                height: '14.6%',
+                background: '#05070f',
+                borderTop: `1px solid ${i % 2 === 0 ? C.cyan : C.violet}`,
+                transform: `translateY(${dir * (1 - off) * 130}%)`,
+                opacity: off > 0.02 ? 1 : 0,
               }}
             />
           );
