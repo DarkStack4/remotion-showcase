@@ -2,7 +2,7 @@ name: Render Remotion
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, master]
 jobs:
   render:
     runs-on: ubuntu-latest
@@ -12,8 +12,8 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
-      - run: npx remotion render Showcase out/showcase.mp4 --concurrency=2
+      - run: npx remotion render Kinetic out/kinetic.mp4 --concurrency=2
       - uses: actions/upload-artifact@v4
         with:
-          name: showcase
-          path: out/showcase.mp4
+          name: kinetic
+          path: out/kinetic.mp4
